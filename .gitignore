@@ -7,3 +7,17 @@
 .idea/
 .DS_Store
 node_modules/
+vendor/
+dist/
+build/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.work
+*.log
+*.log.*
+*.log-*
