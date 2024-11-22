@@ -1,0 +1,7 @@
+version: '3'
+services:
+  mysql-space-exporter:
+    image: nickfan/mysql-space-exporter:latest
+    container_name: mysql-space-exporter
+    ports:
+      - "${EXPORTER_PORT}:9104"

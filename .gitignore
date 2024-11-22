@@ -1,0 +1,9 @@
+.rules/
+
+.env
+.env.local
+.env.prod
+.vscode/
+.idea/
+.DS_Store
+node_modules/
