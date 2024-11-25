@@ -13,9 +13,9 @@ import (
 	"text/template"
 	"time"
 
-	"github.com.prometheus/client_golang/prometheus/promhttp"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var (
@@ -77,7 +77,7 @@ func init() {
 	prometheus.MustRegister(dbTotalSize)
 }
 
-func main() {
+func parseConfig() *Config {
 	config := &Config{}
 	
 	// 长参数
@@ -99,6 +99,12 @@ func main() {
 	flag.IntVar(&config.Port, "P", getEnvAsIntDefault("DB_PORT", 3306), "Database port")
 	
 	flag.Parse()
+	
+	return config
+}
+
+func main() {
+	config := parseConfig()
 
 	dsn := config.User + ":" + config.Password + "@tcp(" + config.Host + ")/"
 	db, err := sql.Open("mysql", dsn)
@@ -109,7 +115,7 @@ func main() {
 
 	go func() {
 		for {
-			collectMetrics(db, config.OutLimit)
+			collectMetrics(db, config)
 			time.Sleep(60 * time.Second)
 		}
 	}()
@@ -143,10 +149,11 @@ func getEnvAsBoolDefault(key string, defaultValue bool) bool {
 	return defaultValue
 }
 
-func logError(format string, v ...interface{}) {
-	if enableLogging {
+func logError(config *Config, format string, v ...interface{}) {
+	if config.EnableLogging {
 		log.Printf(format, v...)
 	}
+
 }
 
 const queryTemplate = `
@@ -188,20 +195,20 @@ func buildQuery(params queryParams) (string, error) {
 	return query.String(), nil
 }
 
-func collectMetrics(db *sql.DB, limit int) {
+func collectMetrics(db *sql.DB, config *Config) {
 	var filterStr string
-	if dbFilter != "" {
+	if config.DBFilter != "" {
 		quoted := make([]string, 0)
-		for _, db := range strings.Split(dbFilter, ",") {
+		for _, db := range strings.Split(config.DBFilter, ",") {
 			quoted = append(quoted, fmt.Sprintf("'%s'", strings.TrimSpace(db)))
 		}
 		filterStr = strings.Join(quoted, ",")
 	}
 
 	var tableFilterStr string
-	if tableFilter != "" {
+	if config.TableFilter != "" {
 		quoted := make([]string, 0)
-		for _, table := range strings.Split(tableFilter, ",") {
+		for _, table := range strings.Split(config.TableFilter, ",") {
 			quoted = append(quoted, fmt.Sprintf("'%s'", strings.TrimSpace(table)))
 		}
 		tableFilterStr = strings.Join(quoted, ",")
@@ -210,19 +217,19 @@ func collectMetrics(db *sql.DB, limit int) {
 	params := queryParams{
 		DBFilter:    filterStr,
 		TableFilter: tableFilterStr,
-		SortField:   sortField,
-		SortOrder:   sortOrder,
+		SortField:   config.SortField,
+		SortOrder:   config.SortOrder,
 	}
 
 	query, err := buildQuery(params)
 	if err != nil {
-		logError("Error building query: %v", err)
+		logError(config, "Error building query: %v", err)
 		return
 	}
 
-	rows, err := db.Query(query, limit)
+	rows, err := db.Query(query, config.OutLimit)
 	if err != nil {
-		logError("Error collecting metrics: %v", err)
+		logError(config, "Error collecting metrics: %v", err)
 		return
 	}
 	defer rows.Close()

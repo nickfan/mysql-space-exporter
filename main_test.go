@@ -4,45 +4,60 @@ import (
 	"database/sql"
 	"flag"
 	"os"
+	"strings"
 	"testing"
 )
 
-func TestGetEnv(t *testing.T) {
+func TestGetEnvDefault(t *testing.T) {
 	tests := []struct {
 		name         string
-		key         string
-		defaultVal  string
-		envVal      string
-		expected    string
+		key          string
+		defaultValue string
+		envValue     string
+		want         string
 		shouldSetEnv bool
 	}{
 		{
 			name:         "使用默认值",
 			key:         "TEST_KEY",
-			defaultVal:  "default",
-			expected:    "default",
+			defaultValue: "default",
+			want:        "default",
 			shouldSetEnv: false,
 		},
 		{
 			name:         "使用环境变量值",
 			key:         "TEST_KEY",
-			defaultVal:  "default",
-			envVal:      "fromenv",
-			expected:    "fromenv",
+			defaultValue: "default",
+			envValue:    "fromenv",
+			want:        "fromenv",
 			shouldSetEnv: true,
+		},
+		{
+			name:         "存在的环境变量",
+			key:          "TEST_VAR",
+			defaultValue: "default",
+			envValue:     "test",
+			want:         "test",
+			shouldSetEnv: true,
+		},
+		{
+			name:         "不存在的环境变量",
+			key:          "NON_EXISTING_VAR",
+			defaultValue: "default",
+			want:         "default",
+			shouldSetEnv: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.shouldSetEnv {
-				os.Setenv(tt.key, tt.envVal)
+			if tt.shouldSetEnv && tt.envValue != "" {
+				os.Setenv(tt.key, tt.envValue)
 				defer os.Unsetenv(tt.key)
 			}
 
-			result := getEnv(tt.key, tt.defaultVal)
-			if result != tt.expected {
-				t.Errorf("getEnv(%s, %s) = %s; 期望 %s", tt.key, tt.defaultVal, result, tt.expected)
+			if got := getEnvDefault(tt.key, tt.defaultValue); got != tt.want {
+				t.Errorf("getEnvDefault() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -100,21 +115,26 @@ func TestBuildQuery(t *testing.T) {
 }
 
 func TestCollectMetrics(t *testing.T) {
-	// 这里可以使用sqlmock来模拟数据库连接
-	// 但为了简单起见，我们只测试基本的错误场景
-	db, err := sql.Open("mysql", "fake_dsn")
-	if err != nil {
+	db, err := sql.Open("mysql", "root:@tcp(localhost:3306)/")
+	if (err != nil) {
 		t.Fatal(err)
 	}
 	defer db.Close()
 
-	// 测试带有无效连接的场景
-	collectMetrics(db, 10)
+	// 创建测试配置
+	testConfig := &Config{
+		OutLimit:  10,
+		SortField: "TOTAL_SIZE",
+		SortOrder: "DESC",
+	}
+
+	// 使用正确的参数类型调用
+	collectMetrics(db, testConfig)
 	// 由于是无效连接，不会panic即为通过
 }
 
 func contains(s, substr string) bool {
-	return len(s) > 0 && len(substr) > 0 && s != substr
+	return len(s) > 0 && len(substr) > 0 && s != substr && strings.Contains(s, substr)
 }
 
 func TestConfigParsing(t *testing.T) {
@@ -219,51 +239,33 @@ func TestConfigParsing(t *testing.T) {
 			os.Args = append([]string{"cmd"}, tt.args...)
 			defer func() { os.Args = oldArgs }()
 
-			config := &Config{}
-			// 重新运行参数解析
-			main()
+			// 创建新的配置实例
+			config := parseConfig()
 
 			// 验证结果
 			if config.Host != tt.expected.Host {
 				t.Errorf("Host = %v, want %v", config.Host, tt.expected.Host)
 			}
-			// ...其他字段的验证
-		})
-	}
-}
-
-func TestGetEnvDefault(t *testing.T) {
-	tests := []struct {
-		name         string
-		key          string
-		defaultValue string
-		envValue     string
-		want         string
-	}{
-		{
-			name:         "Existing env variable",
-			key:          "TEST_VAR",
-			defaultValue: "default",
-			envValue:     "test",
-			want:         "test",
-		},
-		{
-			name:         "Non-existing env variable",
-			key:          "NON_EXISTING_VAR",
-			defaultValue: "default",
-			want:         "default",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if tt.envValue != "" {
-				os.Setenv(tt.key, tt.envValue)
-				defer os.Unsetenv(tt.key)
+			if config.Port != tt.expected.Port {
+				t.Errorf("Port = %v, want %v", config.Port, tt.expected.Port)
 			}
-
-			if got := getEnvDefault(tt.key, tt.defaultValue); got != tt.want {
-				t.Errorf("getEnvDefault() = %v, want %v", got, tt.want)
+			if config.User != tt.expected.User {
+				t.Errorf("User = %v, want %v", config.User, tt.expected.User)
+			}
+			if config.Password != tt.expected.Password {
+				t.Errorf("Password = %v, want %v", config.Password, tt.expected.Password)
+			}
+			if config.OutLimit != tt.expected.OutLimit {
+				t.Errorf("OutLimit = %v, want %v", config.OutLimit, tt.expected.OutLimit)
+			}
+			if config.SortField != tt.expected.SortField {
+				t.Errorf("SortField = %v, want %v", config.SortField, tt.expected.SortField)
+			}
+			if config.SortOrder != tt.expected.SortOrder {
+				t.Errorf("SortOrder = %v, want %v", config.SortOrder, tt.expected.SortOrder)
+			}
+			if config.EnableLogging != tt.expected.EnableLogging {
+				t.Errorf("EnableLogging = %v, want %v", config.EnableLogging, tt.expected.EnableLogging)
 			}
 		})
 	}
