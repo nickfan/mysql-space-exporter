@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"database/sql"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -12,9 +13,9 @@ import (
 	"text/template"
 	"time"
 
+	"github.com.prometheus/client_golang/prometheus/promhttp"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var (
@@ -53,11 +54,20 @@ var (
 		},
 		[]string{"database", "table"},
 	)
-	enableLogging bool
-	dbFilter     string
-	sortField    string
-	sortOrder    string
 )
+
+type Config struct {
+	Host          string
+	Port          int
+	User          string
+	Password      string
+	DBFilter      string
+	TableFilter   string
+	OutLimit      int
+	SortField     string
+	SortOrder     string
+	EnableLogging bool
+}
 
 func init() {
 	prometheus.MustRegister(dbRows)
@@ -65,47 +75,72 @@ func init() {
 	prometheus.MustRegister(dbIndexSize)
 	prometheus.MustRegister(dbDataFree)
 	prometheus.MustRegister(dbTotalSize)
-
-	if val := os.Getenv("ENABLE_LOGGING"); val == "true" {
-		enableLogging = true
-	}
-
-	dbFilter = os.Getenv("DB_FILTER")
-	sortField = os.Getenv("SORT_FIELD")
-	if sortField == "" {
-		sortField = "TOTAL_SIZE"
-	}
-
-	sortOrder = os.Getenv("SORT_ORDER")
-	if sortOrder == "" {
-		sortOrder = "DESC"
-	}
 }
 
 func main() {
-	dsn := os.Getenv("MYSQL_USER") + ":" + os.Getenv("MYSQL_PASSWORD") + "@tcp(" + os.Getenv("MYSQL_HOST") + ")/"
+	config := &Config{}
+	
+	// 长参数
+	flag.StringVar(&config.Host, "host", getEnvDefault("DB_HOST", "localhost"), "Database host")
+	flag.IntVar(&config.Port, "port", getEnvAsIntDefault("DB_PORT", 3306), "Database port")
+	flag.StringVar(&config.User, "user", getEnvDefault("DB_USER", "root"), "Database user")
+	flag.StringVar(&config.Password, "password", getEnvDefault("DB_PASSWD", ""), "Database password")
+	flag.StringVar(&config.DBFilter, "db-filter", getEnvDefault("DB_FILTER", ""), "Database filter")
+	flag.StringVar(&config.TableFilter, "table-filter", getEnvDefault("TABLE_FILTER", ""), "Table filter")
+	flag.IntVar(&config.OutLimit, "limit", getEnvAsIntDefault("OUT_LIMIT", 200), "Output limit")
+	flag.StringVar(&config.SortField, "sort-field", getEnvDefault("SORT_FIELD", "TOTAL_SIZE"), "Sort field")
+	flag.StringVar(&config.SortOrder, "sort-order", getEnvDefault("SORT_ORDER", "DESC"), "Sort order")
+	flag.BoolVar(&config.EnableLogging, "enable-logging", getEnvAsBoolDefault("ENABLE_LOGGING", false), "Enable logging")
+
+	// 短参数
+	flag.StringVar(&config.Host, "H", getEnvDefault("DB_HOST", "localhost"), "Database host")
+	flag.StringVar(&config.User, "u", getEnvDefault("DB_USER", "root"), "Database user")
+	flag.StringVar(&config.Password, "p", getEnvDefault("DB_PASSWD", ""), "Database password")
+	flag.IntVar(&config.Port, "P", getEnvAsIntDefault("DB_PORT", 3306), "Database port")
+	
+	flag.Parse()
+
+	dsn := config.User + ":" + config.Password + "@tcp(" + config.Host + ")/"
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer db.Close()
 
-	limit := 200
-	if val, ok := os.LookupEnv("EXPORTER_LIMIT"); ok {
-		if parsedVal, err := strconv.Atoi(val); err == nil {
-			limit = parsedVal
-		}
-	}
-
 	go func() {
 		for {
-			collectMetrics(db, limit)
+			collectMetrics(db, config.OutLimit)
 			time.Sleep(60 * time.Second)
 		}
 	}()
 
 	http.Handle("/metrics", promhttp.Handler())
-	http.ListenAndServe(":"+os.Getenv("EXPORTER_PORT"), nil)
+	http.ListenAndServe(":"+strconv.Itoa(config.Port), nil)
+}
+
+func getEnvDefault(key, defaultValue string) string {
+	if value, exists := os.LookupEnv(key); exists {
+		return value
+	}
+	return defaultValue
+}
+
+func getEnvAsIntDefault(key string, defaultValue int) int {
+	if value, exists := os.LookupEnv(key); exists {
+		if i, err := strconv.Atoi(value); err == nil {
+			return i
+		}
+	}
+	return defaultValue
+}
+
+func getEnvAsBoolDefault(key string, defaultValue bool) bool {
+	if value, exists := os.LookupEnv(key); exists {
+		if b, err := strconv.ParseBool(value); err == nil {
+			return b
+		}
+	}
+	return defaultValue
 }
 
 func logError(format string, v ...interface{}) {
@@ -126,14 +161,16 @@ const queryTemplate = `
 	FROM information_schema.tables
 	WHERE TABLE_SCHEMA NOT IN ('mysql', 'information_schema', 'performance_schema')
 	{{if .DBFilter}}AND TABLE_SCHEMA IN ({{.DBFilter}}){{end}}
+	{{if .TableFilter}}AND TABLE_NAME IN ({{.TableFilter}}){{end}}
 	ORDER BY {{.SortField}} {{.SortOrder}}
 	LIMIT ?
 `
 
 type queryParams struct {
-	DBFilter  string
-	SortField string
-	SortOrder string
+	DBFilter    string
+	TableFilter string
+	SortField   string
+	SortOrder   string
 }
 
 func buildQuery(params queryParams) (string, error) {
@@ -161,10 +198,20 @@ func collectMetrics(db *sql.DB, limit int) {
 		filterStr = strings.Join(quoted, ",")
 	}
 
+	var tableFilterStr string
+	if tableFilter != "" {
+		quoted := make([]string, 0)
+		for _, table := range strings.Split(tableFilter, ",") {
+			quoted = append(quoted, fmt.Sprintf("'%s'", strings.TrimSpace(table)))
+		}
+		tableFilterStr = strings.Join(quoted, ",")
+	}
+
 	params := queryParams{
-		DBFilter:  filterStr,
-		SortField: sortField,
-		SortOrder: sortOrder,
+		DBFilter:    filterStr,
+		TableFilter: tableFilterStr,
+		SortField:   sortField,
+		SortOrder:   sortOrder,
 	}
 
 	query, err := buildQuery(params)
