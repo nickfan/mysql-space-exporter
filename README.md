@@ -1,6 +1,26 @@
 # MySQL Space Exporter
 
-MySQL Space Exporter 是一个用于监控 MySQL 数据库表空间使用情况的 Prometheus exporter。它能够帮助您实时监控数据库中各个表的空间占用、行数等关键指标。
+MySQL表空间监控的Prometheus exporter。
+
+## 参数说明
+
+### 命令行参数
+
+| 参数 | 短参数 | 环境变量 | 默认值 | 说明 |
+|------|--------|----------|--------|------|
+| --help | -h | - | false | 显示帮助信息 |
+| --host | -H | DB_HOST | localhost | 数据库主机地址 |
+| --port | -P | DB_PORT | 3306 | 数据库端口 |
+| --user | -u | DB_USER | root | 数据库用户名 |
+| --password | -p | DB_PASSWD | - | 数据库密码 |
+| --server-port | - | SERVER_PORT | 9107 | Exporter服务端口 |
+| --db-filter | - | DB_FILTER | - | 数据库过滤列表（逗号分隔） |
+| --table-filter | - | TABLE_FILTER | - | 表名过滤列表（逗号分隔） |
+| --limit | - | OUT_LIMIT | 200 | 输出记录数限制 |
+| --sort-field | - | SORT_FIELD | TOTAL_SIZE | 排序字段 |
+| --sort-order | - | SORT_ORDER | DESC | 排序方向(ASC/DESC) |
+| --enable-logging | - | ENABLE_LOGGING | false | 启用日志记录 |
+| --dotenv | -E | - | - | 加载指定的环境变量文件 |
 
 ## 功能特性
 
