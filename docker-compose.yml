@@ -4,4 +4,4 @@ services:
     image: nickfan/mysql-space-exporter:latest
     container_name: mysql-space-exporter
     ports:
-      - "${EXPORTER_PORT}:9104"
+      - "${EXPORTER_PORT}:9107"

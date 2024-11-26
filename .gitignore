@@ -1,8 +1,10 @@
 .rules/
 
 .env
-.env.local
-.env.prod
+.env.*
+!.env.example
+!.env.local
+
 .vscode/
 .idea/
 .DS_Store
