@@ -312,20 +312,20 @@ func logError(config *Config, format string, v ...interface{}) {
 }
 
 const queryTemplate = `
-	SELECT 
-		TABLE_SCHEMA,
-		TABLE_NAME,
-		TABLE_ROWS,
-		DATA_LENGTH,
-		INDEX_LENGTH,
-		DATA_FREE,
-		(DATA_LENGTH + INDEX_LENGTH) as TOTAL_SIZE
-	FROM information_schema.tables
-	WHERE TABLE_SCHEMA NOT IN ('mysql', 'information_schema', 'performance_schema')
-	{{if .DBFilter}}AND TABLE_SCHEMA IN ({{.DBFilter}}){{end}}
-	{{if .TableFilter}}AND TABLE_NAME IN ({{.TableFilter}}){{end}}
-	ORDER BY {{.SortField}} {{.SortOrder}}
-	LIMIT ?
+    SELECT 
+        TABLE_SCHEMA,
+        TABLE_NAME,
+        COALESCE(TABLE_ROWS, 0) as TABLE_ROWS,
+        COALESCE(DATA_LENGTH, 0) as DATA_LENGTH,
+        COALESCE(INDEX_LENGTH, 0) as INDEX_LENGTH,
+        COALESCE(DATA_FREE, 0) as DATA_FREE,
+        COALESCE(DATA_LENGTH, 0) + COALESCE(INDEX_LENGTH, 0) as TOTAL_SIZE
+    FROM information_schema.tables
+    WHERE TABLE_SCHEMA NOT IN ('mysql', 'information_schema', 'performance_schema')
+    {{if .DBFilter}}AND TABLE_SCHEMA IN ({{.DBFilter}}){{end}}
+    {{if .TableFilter}}AND TABLE_NAME IN ({{.TableFilter}}){{end}}
+    ORDER BY {{.SortField}} {{.SortOrder}}
+    LIMIT ?
 `
 
 type queryParams struct {
@@ -396,11 +396,16 @@ func collectMetrics(db *sql.DB, config *Config) error {
     rowCount := 0
 
     for rows.Next() {
-        var schema, table string
-        var tableRows, dataLength, indexLength, dataFree, totalSize float64
+        var (
+            schema, table string
+            tableRows, dataLength, indexLength, dataFree, totalSize float64
+        )
         
         if err := rows.Scan(&schema, &table, &tableRows, &dataLength, &indexLength, &dataFree, &totalSize); err != nil {
-            return fmt.Errorf("error scanning row: %v", err)
+            if config.EnableLogging {
+                log.Printf("Error scanning row for %s.%s: %v", schema, table, err)
+            }
+            continue // 跳过处理出错的行，继续处理下一行
         }
 
         dbRows.WithLabelValues(schema, table).Set(tableRows)
