@@ -142,3 +142,29 @@ scrape_configs:
 
 ```
 
+*服务发现模式示例*
+
+采集配置：
+```yml
+  - job_name: 'mysql-space-exporter'
+    honor_labels: true
+    file_sd_configs:
+      - files: [ '/etc/prometheus/sd_config/mysql-space-exporter/*.yml' ]
+        refresh_interval: 3m
+
+```
+
+实例配置，比如：/etc/prometheus/sd_config/mysql-space-exporter/instance.yml
+
+```yml
+- labels:
+    job_name: mysql-space-exporter
+    idc: aliyun
+    region: cn-hangzhou
+    project: myproject
+    env: prod
+    instance: prod-001
+  targets:
+    - prod-001.myhost.internal:9107
+
+```

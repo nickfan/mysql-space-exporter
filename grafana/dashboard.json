@@ -18,302 +18,584 @@
   "id": null,
   "links": [],
   "liveNow": false,
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": false,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "definition": "label_values(mysql_table_total_size_bytes, env)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "环境",
+        "multi": false,
+        "name": "env",
+        "options": [],
+        "query": "label_values(mysql_table_total_size_bytes, env)",
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "definition": "label_values(mysql_table_total_size_bytes{env=\"$env\"}, database)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "数据库",
+        "multi": true,
+        "name": "database",
+        "options": [],
+        "query": "label_values(mysql_table_total_size_bytes{env=\"$env\"}, database)",
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "definition": "label_values(mysql_table_total_size_bytes{env=\"$env\", database=~\"$database\"}, table)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "表名",
+        "multi": true,
+        "name": "table",
+        "options": [],
+        "query": "label_values(mysql_table_total_size_bytes{env=\"$env\", database=~\"$database\"}, table)",
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
+  },
   "panels": [
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_PROMETHEUS}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": true,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "unit": "bytes"
-        },
-        "overrides": []
-      },
+      "title": "表空间排行 TOP20",
+      "type": "bargauge",
       "gridPos": {
         "h": 8,
-        "w": 12,
+        "w": 24,
         "x": 0,
         "y": 0
       },
-      "id": 1,
       "options": {
-        "legend": {
-          "calcs": ["lastNotNull", "max", "mean"],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
-        },
         "tooltip": {
           "mode": "multi",
           "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "expr": "topk(10, mysql_table_total_size_bytes)",
-          "legendFormat": "{{database}}.{{table}}",
-          "refId": "A"
-        }
-      ],
-      "title": "表空间 TOP 10",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_PROMETHEUS}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "decbytes"
         },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 0
-      },
-      "id": 2,
-      "options": {
-        "displayMode": "gradient",
-        "minVizHeight": 10,
-        "minVizWidth": 0,
         "orientation": "horizontal",
+        "displayMode": "gradient",
         "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
+          "values": false,
+          "calcs": ["lastNotNull"],
+          "fields": ""
         },
         "showUnfilled": true,
-        "text": {}
+        "sorting": {
+          "enabled": true,
+          "sort": "desc",
+          "field": "lastNotNull"
+        }
       },
-      "pluginVersion": "10.0.3",
       "targets": [
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "expr": "topk(10, mysql_table_data_free_bytes)",
+          "expr": "sort_desc(topk(20, mysql_table_total_size_bytes{env=\"$env\", database=~\"$database\", table=~\"$table\"}))",
           "legendFormat": "{{database}}.{{table}}",
-          "refId": "A"
+          "instant": true,
+          "range": false
         }
       ],
-      "title": "碎片空间 TOP 10",
-      "type": "bargauge"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_PROMETHEUS}"
-      },
       "fieldConfig": {
         "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "blue",
-                "value": null
-              }
-            ]
-          },
-          "unit": "none"
-        },
-        "overrides": []
-      },
+          "unit": "bytes",
+          "decimals": 2,
+          "color": { 
+            "mode": "continuous-BlYlRd"
+          }
+        }
+      }
+    },
+    {
+      "title": "表行数排行 TOP20",
+      "type": "bargauge",
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
         "y": 8
       },
-      "id": 3,
       "options": {
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
         },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"]
+        },
+        "sorting": {
+          "enabled": true,
+          "sort": "desc",
+          "field": "lastNotNull"
+        }
       },
-      "pluginVersion": "10.0.3",
       "targets": [
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "expr": "topk(10, mysql_table_rows)",
+          "expr": "sort_desc(topk(20, mysql_table_rows{env=\"$env\", database=~\"$database\", table=~\"$table\"}))",
           "legendFormat": "{{database}}.{{table}}",
-          "refId": "A"
+          "instant": true,
+          "range": false
         }
       ],
-      "title": "行数 TOP 10",
-      "type": "gauge"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_PROMETHEUS}"
-      },
       "fieldConfig": {
         "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "fillOpacity": 80,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineWidth": 1,
-            "scaleDistribution": {
-              "type": "linear"
-            }
-          },
-          "mappings": [],
-          "unit": "bytes"
-        },
-        "overrides": []
-      },
+          "unit": "short",
+          "decimals": 2,
+          "color": { 
+            "mode": "continuous-BlYlRd"
+          }
+        }
+      }
+    },
+    {
+      "title": "碎片空间排行 TOP20",
+      "type": "bargauge",
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 12,
         "y": 8
       },
-      "id": 4,
       "options": {
-        "barRadius": 0,
-        "barWidth": 0.97,
-        "groupWidth": 0.7,
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
         },
         "orientation": "horizontal",
-        "showValue": "auto",
-        "stacking": "none",
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
+        "displayMode": "gradient",
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"]
         },
-        "xField": "database.table",
-        "xTickLabelRotation": 0
+        "sorting": {
+          "enabled": true,
+          "sort": "desc",
+          "field": "lastNotNull"
+        }
       },
       "targets": [
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "expr": "topk(10, mysql_table_data_size_bytes)",
-          "legendFormat": "数据大小",
-          "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "expr": "topk(10, mysql_table_index_size_bytes)",
-          "legendFormat": "索引大小",
-          "refId": "B"
+          "expr": "sort_desc(topk(20, mysql_table_data_free_bytes{env=\"$env\", database=~\"$database\", table=~\"$table\"}))",
+          "legendFormat": "{{database}}.{{table}}",
+          "instant": true,
+          "range": false
         }
       ],
-      "title": "数据/索引大小对比 TOP 10",
-      "type": "barchart"
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "decimals": 2,
+          "color": { 
+            "mode": "continuous-BlYlRd"
+          }
+        }
+      }
+    },
+    {
+      "title": "数据空间排行 TOP20",
+      "type": "bargauge",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"]
+        },
+        "sorting": {
+          "enabled": true,
+          "sort": "desc",
+          "field": "lastNotNull"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sort_desc(topk(20, mysql_table_data_size_bytes{env=\"$env\", database=~\"$database\", table=~\"$table\"}))",
+          "legendFormat": "{{database}}.{{table}}",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "decimals": 2,
+          "color": { 
+            "mode": "continuous-BlYlRd"
+          }
+        }
+      }
+    },
+    {
+      "title": "索引空间排行 TOP20",
+      "type": "bargauge",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"]
+        },
+        "sorting": {
+          "enabled": true,
+          "sort": "desc",
+          "field": "lastNotNull"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sort_desc(topk(20, mysql_table_index_size_bytes{env=\"$env\", database=~\"$database\", table=~\"$table\"}))",
+          "legendFormat": "{{database}}.{{table}}",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "decimals": 2,
+          "color": { 
+            "mode": "continuous-BlYlRd"
+          }
+        }
+      }
+    },
+    {
+      "title": "表空间总量趋势",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 24
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc",
+          "showHistogram": true
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "calcs": ["mean", "max", "last"],
+          "sortBy": "Last",
+          "sortDesc": true
+        }
+      },
+      "targets": [
+        {
+          "expr": "mysql_table_total_size_bytes{env=\"$env\", database=~\"$database\", table=~\"$table\"}",
+          "legendFormat": "{{database}}.{{table}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "decimals": 2,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "spanNulls": true,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 10,
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          }
+        }
+      }
+    },
+    {
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 32
+      },
+      "id": 2,
+      "title": "表行数趋势",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc",
+          "showHistogram": true
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "calcs": ["mean", "max", "last"],
+          "sortBy": "Last",
+          "sortDesc": true
+        }
+      },
+      "targets": [
+        {
+          "expr": "mysql_table_rows{env=\"$env\", database=~\"$database\", table=~\"$table\"}",
+          "legendFormat": "{{database}}.{{table}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 2,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "spanNulls": true,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 10,
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          }
+        }
+      }
+    },
+    {
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 32
+      },
+      "id": 3,
+      "title": "数据大小趋势",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc",
+          "showHistogram": true
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "calcs": ["mean", "max", "last"],
+          "sortBy": "Last",
+          "sortDesc": true
+        }
+      },
+      "targets": [
+        {
+          "expr": "mysql_table_data_size_bytes{env=\"$env\", database=~\"$database\", table=~\"$table\"}",
+          "legendFormat": "{{database}}.{{table}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "decimals": 2,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "spanNulls": true,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 10,
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          }
+        }
+      }
+    },
+    {
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 40
+      },
+      "id": 4,
+      "title": "索引大小趋势",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc",
+          "showHistogram": true
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "calcs": ["mean", "max", "last"],
+          "sortBy": "Last",
+          "sortDesc": true
+        }
+      },
+      "targets": [
+        {
+          "expr": "mysql_table_index_size_bytes{env=\"$env\", database=~\"$database\", table=~\"$table\"}",
+          "legendFormat": "{{database}}.{{table}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "decimals": 2,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "spanNulls": true,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 10,
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          }
+        }
+      }
+    },
+    {
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 40
+      },
+      "id": 5,
+      "title": "碎片空间趋势",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc",
+          "showHistogram": true
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "calcs": ["mean", "max", "last"],
+          "sortBy": "Last",
+          "sortDesc": true
+        }
+      },
+      "targets": [
+        {
+          "expr": "mysql_table_data_free_bytes{env=\"$env\", database=~\"$database\", table=~\"$table\"}",
+          "legendFormat": "{{database}}.{{table}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "decimals": 2,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "spanNulls": true,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 10,
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          }
+        }
+      }
     }
   ],
   "refresh": "1m",
   "schemaVersion": 38,
   "style": "dark",
   "tags": ["mysql", "space", "exporter"],
-  "templating": {
-    "list": []
-  },
   "time": {
-    "from": "now-6h",
+    "from": "now-24h",
     "to": "now"
   },
-  "timepicker": {},
-  "timezone": "",
   "title": "MySQL Space Overview",
   "uid": "mysql-space-overview",
-  "version": 1,
-  "weekStart": ""
+  "version": 2
 }
