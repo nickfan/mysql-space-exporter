@@ -38,15 +38,17 @@ MySQL表空间监控的Prometheus exporter。
 
 ## 环境变量配置
 
-- `MYSQL_HOST`: MySQL主机地址 (默认: localhost:3306)
-- `MYSQL_USER`: MySQL用户名
-- `MYSQL_PASSWORD`: MySQL密码
-- `EXPORTER_PORT`: 导出器端口 (默认: 9104)
-- `EXPORTER_LIMIT`: 监控表数量限制 (默认: 200)
+- `DB_HOST`: MySQL主机地址 (默认: localhost)
+- `DB_PORT`: MySQL主机端口 (默认: 3306)
+- `DB_USER`: MySQL用户名
+- `DB_PASSWD`: MySQL密码
+- `SERVER_PORT`: 导出器端口 (默认: 9107)
 - `ENABLE_LOGGING`: 是否启用日志 (默认: false)
-- `DB_FILTER`: 数据库过滤列表，逗号分隔
+- `OUT_LIMIT`: 监控表数量限制 (默认: 200)
 - `SORT_FIELD`: 排序字段 (默认: TOTAL_SIZE)
 - `SORT_ORDER`: 排序方向 (默认: DESC)
+- `DB_FILTER`: 数据库过滤列表，逗号分隔
+- `TABLE_FILTER`: 数据库表过滤列表，逗号分隔
 
 ## 快速开始
 
