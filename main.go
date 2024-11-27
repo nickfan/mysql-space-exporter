@@ -321,7 +321,7 @@ const queryTemplate = `
         COALESCE(DATA_FREE, 0) as DATA_FREE,
         COALESCE(DATA_LENGTH, 0) + COALESCE(INDEX_LENGTH, 0) as TOTAL_SIZE
     FROM information_schema.tables
-    WHERE TABLE_SCHEMA NOT IN ('mysql', 'information_schema', 'performance_schema')
+    WHERE TABLE_SCHEMA NOT IN ('mysql', 'sys', 'information_schema', 'performance_schema')
     {{if .DBFilter}}AND TABLE_SCHEMA IN ({{.DBFilter}}){{end}}
     {{if .TableFilter}}AND TABLE_NAME IN ({{.TableFilter}}){{end}}
     ORDER BY {{.SortField}} {{.SortOrder}}
