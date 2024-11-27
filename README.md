@@ -52,6 +52,66 @@ MySQL表空间监控的Prometheus exporter。
 
 ## 快速开始
 
-### 本地开发环境配置
-
 ### 安装
+
+首次根据需求调整配置
+
+```sh
+cat >.env <<EOF
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=root
+DB_PASSWD=secret
+SERVER_PORT=9107
+ENABLE_LOGGING=false
+OUT_LIMIT=200
+SORT_FIELD=TOTAL_SIZE
+SORT_ORDER=DESC
+DB_FILTER=
+TABLE_FILTER=
+
+EOF
+
+```
+
+docker-compose.yml配置：
+
+```sh
+cat >docker-compose.yml <<EOF
+version: '3'
+services:
+  mysql-space-exporter:
+    env_file: .env
+    image: nickfan/mysql-space-exporter:latest
+    container_name: mysql-space-exporter
+    ports:
+      - "${SERVER_PORT}:9107"
+
+EOF
+
+```
+
+启动服务：
+
+```sh
+docker compose up -d
+
+```
+
+验证效果：
+
+```sh
+curl http://localhost:9107/metrics
+
+```
+
+prometheus采集配置：
+
+```yml
+scrape_configs:
+  - job_name: 'mysql-space-exporter'
+    static_configs:
+      - targets: ['localhost:9107']
+```
+
+
