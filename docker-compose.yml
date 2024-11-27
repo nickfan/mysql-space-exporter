@@ -1,6 +1,7 @@
 version: '3'
 services:
   mysql-space-exporter:
+    env_file: .env
     image: nickfan/mysql-space-exporter:latest
     container_name: mysql-space-exporter
     ports:
