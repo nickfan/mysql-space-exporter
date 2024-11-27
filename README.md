@@ -114,6 +114,9 @@ scrape_configs:
   - job_name: 'mysql-space-exporter'
     static_configs:
       - targets: ['localhost:9107']
+        labels:
+          env: 'local'
+          instance: 'localhost'
 ```
 
 
