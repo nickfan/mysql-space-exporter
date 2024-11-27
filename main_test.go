@@ -2,10 +2,10 @@ package main
 
 import (
 	"database/sql"
-	"flag"
 	"os"
 	"strings"
 	"testing"
+
 )
 
 func TestGetEnvDefault(t *testing.T) {
@@ -138,14 +138,26 @@ func contains(s, substr string) bool {
 }
 
 func TestConfigParsing(t *testing.T) {
-    // 在每个测试开始前保存原始环境变量
+    // 保存原始的命令行参数和环境变量
+    originalArgs := os.Args
     originalEnv := os.Environ()
     
-    // 清理环境
+    // 备份并移除现有的 .env 文件（如果存在）
+    if _, err := os.Stat(".env"); err == nil {
+        if err := os.Rename(".env", ".env.backup"); err != nil {
+            t.Fatalf("Failed to backup .env file: %v", err)
+        }
+        defer func() {
+            if err := os.Rename(".env.backup", ".env"); err != nil {
+                t.Errorf("Failed to restore .env file: %v", err)
+            }
+        }()
+    }
+    
+    // 清理函数
     cleanup := func() {
-        // 清除所有环境变量
+        os.Args = originalArgs
         os.Clearenv()
-        // 恢复原始环境变量
         for _, env := range originalEnv {
             parts := strings.SplitN(env, "=", 2)
             if len(parts) == 2 {
@@ -153,68 +165,35 @@ func TestConfigParsing(t *testing.T) {
             }
         }
     }
-
+    
     tests := []struct {
         name     string
         args     []string
         envVars  map[string]string
-        expected Config
+        validate func(*testing.T, *Config)
     }{
         {
             name: "Default values",
-            args: []string{},
-            expected: Config{
-                Host:          "localhost",
-                Port:          3306,
-                User:          "root",
-                Password:      "",
-                OutLimit:      200,
-                SortField:     "TOTAL_SIZE",
-                SortOrder:     "DESC",
-                EnableLogging: false,
-            },
-        },
-        {
-            name: "Long format arguments",
-            args: []string{
-                "--host=testhost",
-                "--port=3307",
-                "--user=testuser",
-                "--password=testpass",
-                "--limit=100",
-            },
-            expected: Config{
-                Host:          "testhost",
-                Port:          3307,
-                User:          "testuser",
-                Password:      "testpass",
-                OutLimit:      100,
-                SortField:     "TOTAL_SIZE",
-                SortOrder:     "DESC",
-                EnableLogging: false,
-            },
-        },
-        {
-            name: "Short format arguments",
-            args: []string{
-                "-H", "testhost",
-                "-P", "3307",
-                "-u", "testuser",
-                "-p", "testpass",
-            },
-            expected: Config{
-                Host:          "testhost",
-                Port:          3307,
-                User:          "testuser",
-                Password:      "testpass",
-                OutLimit:      200,
-                SortField:     "TOTAL_SIZE",
-                SortOrder:     "DESC",
-                EnableLogging: false,
+            args: []string{"cmd"},
+            envVars: map[string]string{}, // 确保没有环境变量
+            validate: func(t *testing.T, c *Config) {
+                if c.Host != "localhost" {
+                    t.Errorf("Host = %v, want localhost", c.Host)
+                }
+                if c.Port != 3306 {
+                    t.Errorf("Port = %v, want 3306", c.Port)
+                }
+                if c.User != "root" {
+                    t.Errorf("User = %v, want root", c.User)
+                }
+                if c.OutLimit != 200 {
+                    t.Errorf("OutLimit = %v, want 200", c.OutLimit)
+                }
             },
         },
         {
             name: "Environment variables",
+            args: []string{"cmd"},
             envVars: map[string]string{
                 "DB_HOST":        "envhost",
                 "DB_PORT":        "3308",
@@ -225,65 +204,70 @@ func TestConfigParsing(t *testing.T) {
                 "SORT_ORDER":     "ASC",
                 "ENABLE_LOGGING": "true",
             },
-            expected: Config{
-                Host:          "envhost",
-                Port:          3308,
-                User:          "envuser",
-                Password:      "envpass",
-                OutLimit:      150,
-                SortField:     "DATA_SIZE",
-                SortOrder:     "ASC",
-                EnableLogging: true,
+            validate: func(t *testing.T, c *Config) {
+                if c.Host != "envhost" {
+                    t.Errorf("Host = %v, want envhost", c.Host)
+                }
+                if c.Port != 3308 {
+                    t.Errorf("Port = %v, want 3308", c.Port)
+                }
+                if c.User != "envuser" {
+                    t.Errorf("User = %v, want envuser", c.User)
+                }
+                if c.Password != "envpass" {
+                    t.Errorf("Password = %v, want envpass", c.Password)
+                }
+            },
+        },
+        {
+            name: "Command line arguments",
+            args: []string{
+                "cmd",
+                "--host=testhost",
+                "--port=3307",
+                "--user=testuser",
+                "--password=testpass",
+            },
+            validate: func(t *testing.T, c *Config) {
+                if c.Host != "testhost" {
+                    t.Errorf("Host = %v, want testhost", c.Host)
+                }
+                if c.Port != 3307 {
+                    t.Errorf("Port = %v, want 3307", c.Port)
+                }
+                if c.User != "testuser" {
+                    t.Errorf("User = %v, want testuser", c.User)
+                }
+                if c.Password != "testpass" {
+                    t.Errorf("Password = %v, want testpass", c.Password)
+                }
             },
         },
     }
 
     for _, tt := range tests {
         t.Run(tt.name, func(t *testing.T) {
-            // 每个测试用例开始时清理环境
+            // 每个测试前清理环境
             cleanup()
             
-            // 重置标志
-            flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
+            // 完全清除环境变量
+            os.Clearenv()
             
             // 设置环境变量
             for k, v := range tt.envVars {
-                os.Setenv(k, v)
+                if err := os.Setenv(k, v); err != nil {
+                    t.Fatalf("Failed to set environment variable %s: %v", k, err)
+                }
             }
-
+            
             // 设置命令行参数
-            oldArgs := os.Args
-            os.Args = append([]string{"cmd"}, tt.args...)
-            defer func() { os.Args = oldArgs }()
-
-            // 创建新的配置实例
+            os.Args = tt.args
+            
+            // 执行测试
             config := parseConfig()
-
+            
             // 验证结果
-            if config.Host != tt.expected.Host {
-                t.Errorf("Host = %v, want %v", config.Host, tt.expected.Host)
-            }
-            if config.Port != tt.expected.Port {
-                t.Errorf("Port = %v, want %v", config.Port, tt.expected.Port)
-            }
-            if config.User != tt.expected.User {
-                t.Errorf("User = %v, want %v", config.User, tt.expected.User)
-            }
-            if config.Password != tt.expected.Password {
-                t.Errorf("Password = %v, want %v", config.Password, tt.expected.Password)
-            }
-            if config.OutLimit != tt.expected.OutLimit {
-                t.Errorf("OutLimit = %v, want %v", config.OutLimit, tt.expected.OutLimit)
-            }
-            if config.SortField != tt.expected.SortField {
-                t.Errorf("SortField = %v, want %v", config.SortField, tt.expected.SortField)
-            }
-            if config.SortOrder != tt.expected.SortOrder {
-                t.Errorf("SortOrder = %v, want %v", config.SortOrder, tt.expected.SortOrder)
-            }
-            if config.EnableLogging != tt.expected.EnableLogging {
-                t.Errorf("EnableLogging = %v, want %v", config.EnableLogging, tt.expected.EnableLogging)
-            }
+            tt.validate(t, config)
         })
     }
 

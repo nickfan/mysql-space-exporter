@@ -18,7 +18,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/pflag"
-
 )
 
 var (
@@ -128,94 +127,99 @@ func loadEnvFile(envFile string, enableLogging bool) error {
 	return scanner.Err()
 }
 
+// ...existing code...
+
 func parseConfig() *Config {
-	config := &Config{}
-	
-	// 帮助和环境变量文件参数
-	pflag.BoolVarP(&config.Help, "help", "h", false, "Show help information")
-	pflag.StringVarP(&config.DotEnv, "dotenv", "E", "", "Load environment variables from .env file")
-	
-	// 服务器端口
-	pflag.IntVar(&config.ServerPort, "server-port", 9107, 
-		"Server port for metrics endpoint (env: SERVER_PORT, default: 9107)")
-	
-	// 数据库连接参数
-	pflag.StringVarP(&config.Host, "host", "H", "localhost", 
-		"Database host (env: DB_HOST, default: localhost)")
-	pflag.IntVarP(&config.Port, "port", "P", 3306, 
-		"Database port (env: DB_PORT, default: 3306)")
-	pflag.StringVarP(&config.User, "user", "u", "root", 
-		"Database user (env: DB_USER, default: root)")
-	pflag.StringVarP(&config.Password, "password", "p", "", 
-		"Database password (env: DB_PASSWD)")
-	
-	// 过滤和排序参数
-	pflag.StringVar(&config.DBFilter, "db-filter", "", 
-		"Database filter, comma separated (env: DB_FILTER)")
-	pflag.StringVar(&config.TableFilter, "table-filter", "", 
-		"Table filter, comma separated (env: TABLE_FILTER)")
-	pflag.IntVar(&config.OutLimit, "limit", 200, 
-		"Output limit (env: OUT_LIMIT, default: 200)")
-	pflag.StringVar(&config.SortField, "sort-field", "TOTAL_SIZE", 
-		"Sort field (env: SORT_FIELD, default: TOTAL_SIZE)")
-	pflag.StringVar(&config.SortOrder, "sort-order", "DESC", 
-		"Sort order (env: SORT_ORDER, default: DESC)")
-	
-	// 日志参数
-	pflag.BoolVar(&config.EnableLogging, "enable-logging", false, 
-		"Enable logging (env: ENABLE_LOGGING, default: false)")
-	
-	// 解析命令行参数
-	pflag.Parse()
+    config := &Config{}
+    
+    // 创建新的标志集
+    flags := pflag.NewFlagSet("mysql-space-exporter", pflag.ExitOnError)
+    
+    // 帮助和环境变量文件参数
+    flags.BoolVarP(&config.Help, "help", "h", false, "Show help information")
+    flags.StringVarP(&config.DotEnv, "dotenv", "E", "", "Load environment variables from .env file")
+    
+    // 服务器端口
+    flags.IntVar(&config.ServerPort, "server-port", 9107, 
+        "Server port for metrics endpoint (env: SERVER_PORT, default: 9107)")
+    
+    // 数据库连接参数
+    flags.StringVarP(&config.Host, "host", "H", "localhost", 
+        "Database host (env: DB_HOST, default: localhost)")
+    flags.IntVarP(&config.Port, "port", "P", 3306, 
+        "Database port (env: DB_PORT, default: 3306)")
+    flags.StringVarP(&config.User, "user", "u", "root", 
+        "Database user (env: DB_USER, default: root)")
+    flags.StringVarP(&config.Password, "password", "p", "", 
+        "Database password (env: DB_PASSWD)")
+    
+    // 过滤和排序参数
+    flags.StringVar(&config.DBFilter, "db-filter", "", 
+        "Database filter, comma separated (env: DB_FILTER)")
+    flags.StringVar(&config.TableFilter, "table-filter", "", 
+        "Table filter, comma separated (env: TABLE_FILTER)")
+    flags.IntVar(&config.OutLimit, "limit", 200, 
+        "Output limit (env: OUT_LIMIT, default: 200)")
+    flags.StringVar(&config.SortField, "sort-field", "TOTAL_SIZE", 
+        "Sort field (env: SORT_FIELD, default: TOTAL_SIZE)")
+    flags.StringVar(&config.SortOrder, "sort-order", "DESC", 
+        "Sort order (env: SORT_ORDER, default: DESC)")
+    
+    // 日志参数
+    flags.BoolVar(&config.EnableLogging, "enable-logging", false, 
+        "Enable logging (env: ENABLE_LOGGING, default: false)")
+    
+    // 解析命令行参数
+    flags.Parse(os.Args[1:])
 
-	// 处理帮助信息
-	if config.Help {
-		pflag.Usage()
-		os.Exit(0)
-	}
+    // 处理帮助信息
+    if config.Help {
+        flags.Usage()
+        os.Exit(0)
+    }
 
-	// 首先尝试加载 .env 文件
-	if config.DotEnv != "" {
-		envFile := config.DotEnv
-		if envFile == "true" {
-			envFile = ".env"
-		}
-		if err := loadEnvFile(envFile, config.EnableLogging); err != nil {
-			log.Printf("Warning: Could not load specified environment file %s: %v", envFile, err)
-		} else {
-			log.Printf("Successfully loaded environment from file: %s", envFile)
-		}
-	} else if _, err := os.Stat(".env"); err == nil {
-		// 如果存在默认的 .env 文件，则加载它
-		if err := loadEnvFile(".env", config.EnableLogging); err != nil {
-			log.Printf("Warning: Could not load default .env file: %v", err)
-		} else {
-			log.Printf("Successfully loaded environment from default .env file")
-		}
-	}
+    // 首先尝试加载 .env 文件
+    if config.DotEnv != "" {
+        envFile := config.DotEnv
+        if envFile == "true" {
+            envFile = ".env"
+        }
+        if err := loadEnvFile(envFile, config.EnableLogging); err != nil {
+            log.Printf("Warning: Could not load specified environment file %s: %v", envFile, err)
+        } else {
+            log.Printf("Successfully loaded environment from file: %s", envFile)
+        }
+    } else if _, err := os.Stat(".env"); err == nil {
+        // 如果存在默认的 .env 文件，则加载它
+        if err := loadEnvFile(".env", config.EnableLogging); err != nil {
+            log.Printf("Warning: Could not load default .env file: %v", err)
+        } else {
+            log.Printf("Successfully loaded environment from default .env file")
+        }
+    }
 
-	// 从环境变量更新配置
-	if envHost := os.Getenv("DB_HOST"); envHost != "" && !pflag.CommandLine.Changed("host") {
-		config.Host = envHost
-		log.Printf("Using DB_HOST from environment: %s", envHost)
-	}
-	if envPort := os.Getenv("DB_PORT"); envPort != "" && !pflag.CommandLine.Changed("port") {
-		if port, err := strconv.Atoi(envPort); err == nil {
-			config.Port = port
-			log.Printf("Using DB_PORT from environment: %d", port)
-		}
-	}
-	if envUser := os.Getenv("DB_USER"); envUser != "" && !pflag.CommandLine.Changed("user") {
-		config.User = envUser
-		log.Printf("Using DB_USER from environment: %s", envUser)
-	}
-	if envPass := os.Getenv("DB_PASSWD"); envPass != "" && !pflag.CommandLine.Changed("password") {
-		config.Password = envPass
-		log.Printf("Using DB_PASSWD from environment")
-	}
-	// ... 其他环境变量的处理 ...
+    // 从环境变量更新配置
+    if envHost := os.Getenv("DB_HOST"); envHost != "" && !flags.Changed("host") {
+        config.Host = envHost
+        log.Printf("Using DB_HOST from environment: %s", envHost)
+    }
+    if envPort := os.Getenv("DB_PORT"); envPort != "" && !flags.Changed("port") {
+        if port, err := strconv.Atoi(envPort); err == nil {
+            config.Port = port
+            log.Printf("Using DB_PORT from environment: %d", port)
+        }
+    }
+    if envUser := os.Getenv("DB_USER"); envUser != "" && !flags.Changed("user") {
+        config.User = envUser
+        log.Printf("Using DB_USER from environment: %s", envUser)
+    }
+    if envPass := os.Getenv("DB_PASSWD"); envPass != "" && !flags.Changed("password") {
+        config.Password = envPass
+        log.Printf("Using DB_PASSWD from environment")
+    }
+    // ... 其他环境变量的处理 ...
 
-	return config
+    return config
 }
 
 // 新增：根路径处理函数
