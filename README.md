@@ -107,6 +107,8 @@ curl http://localhost:9107/metrics
 
 prometheus采集配置：
 
+*简单配置模式示例*
+
 ```yml
 scrape_configs:
   - job_name: 'mysql-space-exporter'
@@ -114,4 +116,26 @@ scrape_configs:
       - targets: ['localhost:9107']
 ```
 
+
+*多环境配置模式示例*
+
+```yml
+scrape_configs:
+  # 统一使用相同的 job_name，通过 labels 区分环境
+  - job_name: 'mysql-space-exporter'
+    static_configs:
+      - targets: ['dev-001.myhost.internal:9107']
+        labels:
+          env: 'dev'
+          instance: 'dev-001'
+      - targets: ['test-001.myhost.internal:9107']
+        labels:
+          env: 'test'
+          instance: 'test-001'
+      - targets: ['prod-001.myhost.internal:9107']
+        labels:
+          env: 'prod'
+          instance: 'prod-001'
+
+```
 
